@@ -1,7 +1,60 @@
 ﻿@page "/"
+@using System.Security.Claims
+@using Reelr.Data
+@using Reelr.Services
+@inject MovieService MovieService
+@inject AuthenticationStateProvider AuthProvider
 
-<PageTitle>Home</PageTitle>
+<h1>Movies</h1>
 
-<h1>Hello, world!</h1>
+@if (_movies == null)
+{
+    <p>Loading...</p>
+}
+else
+{
+    <div class="movie-grid">
+        @foreach (var movie in _movies)
+        {
+            <div class="movie-card">
+                <h3>@movie.Title</h3>
+                <p>@movie.Overview</p>
+                <button @onclick="() => ToggleFavorite(movie.Id)">
+                    @(IsFavorite(movie.Id) ? "Remove" : "Add")
+                </button>
+            </div>
+        }
+    </div>
+}
 
-Welcome to your new app.
+@code {
+    private List<Movie>? _movies;
+    private List<Movie> _userFavorites = new();
+    private string? _userId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        _userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        _movies = await MovieService.GetMoviesAsync();
+        
+        if (_userId != null)
+            _userFavorites = await MovieService.GetUserFavoritesAsync(_userId);
+    }
+
+    private bool IsFavorite(int movieId)
+        => _userFavorites.Any(f => f.Id == movieId);
+
+    private async Task ToggleFavorite(int movieId)
+    {
+        if (_userId == null) return;
+
+        if (IsFavorite(movieId))
+            await MovieService.RemoveFavoriteAsync(_userId, movieId);
+        else
+            await MovieService.AddFavoriteAsync(_userId, movieId);
+
+        _userFavorites = await MovieService.GetUserFavoritesAsync(_userId);
+    }
+}

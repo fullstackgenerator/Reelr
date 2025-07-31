@@ -1,0 +1,43 @@
+﻿@page "/favorites"
+@using System.Security.Claims
+@using Reelr.Data
+@using Reelr.Services
+@inject MovieService MovieService
+@inject AuthenticationStateProvider AuthProvider
+
+<h1>Your Favorite Movies</h1>
+
+@if (_favorites == null)
+{
+    <p>Loading...</p>
+}
+else if (!_favorites.Any())
+{
+    <p>No favorites yet!</p>
+}
+else
+{
+    <div class="movie-grid">
+        @foreach (var movie in _favorites)
+        {
+            <div class="movie-card">
+                <h3>@movie.Title</h3>
+                <p>@movie.Overview</p>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<Movie>? _favorites;
+    private string? _userId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        _userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (_userId != null)
+            _favorites = await MovieService.GetUserFavoritesAsync(_userId);
+    }
+}

@@ -17,10 +17,21 @@ public class MovieService
         return await _context.Movies.ToListAsync();
     }
 
-    public async Task AddMovieAsync(string userId, int movieId)
+    public async Task AddFavoriteAsync(string userId, int movieId)
     {
-        _context.FavoriteMovies.Add(new FavoriteMovie { UserId = userId, MovieId = movieId });
-        await _context.SaveChangesAsync();
+        try
+        {
+            if (await _context.FavoriteMovies.AnyAsync(f => f.UserId == userId && f.MovieId == movieId))
+                return;
+
+            _context.FavoriteMovies.Add(new FavoriteMovie { UserId = userId, MovieId = movieId });
+            await _context.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.Write($"An error occured. Adding {movieId} movie not saved.");
+            throw;
+        }
     }
 
     public async Task RemoveFavoriteAsync(string userId, int movieId)

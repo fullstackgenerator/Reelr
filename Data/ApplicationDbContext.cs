@@ -22,7 +22,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         
         builder.Entity<FavoriteMovie>()
             .HasOne(f => f.User)
-            .WithMany(u => u.FavoriteMovie)
+            .WithMany(u => u.FavoriteMovies)
             .HasForeignKey(f => f.UserId)
             .OnDelete(DeleteBehavior.Cascade);
         
