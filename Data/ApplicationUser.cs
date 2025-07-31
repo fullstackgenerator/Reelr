@@ -2,9 +2,9 @@ using Microsoft.AspNetCore.Identity;
 
 namespace Reelr.Data
 {
-    // Add profile data for application users by adding properties to the ApplicationUser class
     public class ApplicationUser : IdentityUser
     {
+        public ICollection<FavoriteMovie> FavoriteMovie { get; set; } = new List<FavoriteMovie>();
     }
 
 }
