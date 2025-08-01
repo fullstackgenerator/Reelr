@@ -6,14 +6,33 @@ namespace Reelr.Services;
 public class MovieService
 {
     private readonly ApplicationDbContext _context;
+    private readonly TmdbService _tmdbService;
 
-    public MovieService(ApplicationDbContext context)
+    public MovieService(ApplicationDbContext context, TmdbService tmdbService)
     {
         _context = context;
+        _tmdbService = tmdbService;
     }
 
+
+ 
     public async Task<List<Movie>> GetMoviesAsync()
     {
+        if (!_context.Movies.Any())
+        {
+            var movies = await _tmdbService.GetPopularMoviesAsync();
+        
+            foreach (var movie in movies)
+            {
+                if (!_context.Movies.Any(m => m.Title == movie.Title))
+                {
+                    _context.Movies.Add(movie);
+                }
+            }
+        
+            await _context.SaveChangesAsync();
+        }
+    
         return await _context.Movies.ToListAsync();
     }
 

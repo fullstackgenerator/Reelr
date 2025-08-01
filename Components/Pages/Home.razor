@@ -17,8 +17,12 @@ else
         @foreach (var movie in _movies)
         {
             <div class="movie-card">
-                <h3>@movie.Title</h3>
+                <img src="@($"https://image.tmdb.org/t/p/w500/{movie.PosterPath}")" 
+                     alt="@movie.Title poster"
+                     style="max-width: 200px"/>
+                <h3>@movie.Title (@movie.ReleaseYear)</h3>
                 <p>@movie.Overview</p>
+                <p>Rating: @(movie.VoteAverageTmdb?.ToString("0.0") ?? "N/A")/10</p>
                 <button @onclick="() => ToggleFavorite(movie.Id)">
                     @(IsFavorite(movie.Id) ? "Remove" : "Add")
                 </button>
