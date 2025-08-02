@@ -13,27 +13,21 @@ public class MovieService
         _context = context;
         _tmdbService = tmdbService;
     }
-
-
  
     public async Task<List<Movie>> GetMoviesAsync()
     {
-        if (!_context.Movies.Any())
+        var existingMovies = await _context.Movies.ToListAsync();
+        
+        if (!existingMovies.Any())
         {
-            var movies = await _tmdbService.GetPopularMoviesAsync();
-        
-            foreach (var movie in movies)
-            {
-                if (!_context.Movies.Any(m => m.Title == movie.Title))
-                {
-                    _context.Movies.Add(movie);
-                }
-            }
-        
+            var tmdbMovies = await _tmdbService.GetPopularMoviesAsync();
+            
+            _context.Movies.AddRange(tmdbMovies);
             await _context.SaveChangesAsync();
+            return await _context.Movies.ToListAsync();
         }
     
-        return await _context.Movies.ToListAsync();
+        return existingMovies;
     }
 
     public async Task AddFavoriteAsync(string userId, int movieId)
@@ -42,20 +36,28 @@ public class MovieService
         {
             if (await _context.FavoriteMovies.AnyAsync(f => f.UserId == userId && f.MovieId == movieId))
                 return;
+            
+            var movieExists = await _context.Movies.AnyAsync(m => m.Id == movieId);
+            if (!movieExists)
+            {
+                Console.WriteLine($"Movie with ID {movieId} not found in database");
+                return;
+            }
 
             _context.FavoriteMovies.Add(new FavoriteMovie { UserId = userId, MovieId = movieId });
             await _context.SaveChangesAsync();
         }
         catch (Exception ex)
         {
-            Console.Write($"An error occured. Adding {movieId} movie not saved.");
+            Console.WriteLine($"An error occurred adding movie {movieId} to favorites: {ex.Message}");
             throw;
         }
     }
 
     public async Task RemoveFavoriteAsync(string userId, int movieId)
     {
-        var favourite = _context.FavoriteMovies.FirstOrDefault(f => f.UserId == userId && f.MovieId == movieId);
+        var favourite = await _context.FavoriteMovies
+            .FirstOrDefaultAsync(f => f.UserId == userId && f.MovieId == movieId);
 
         if (favourite != null)
         {

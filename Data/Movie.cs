@@ -6,6 +6,9 @@ public class Movie
 {
     [Key]
     public int Id { get; set; }
+    
+    public int TmdbId { get; set; }
+    
     [Required]
     public string? Title { get; set; }
 
@@ -20,4 +23,6 @@ public class Movie
     public float? VoteAverageTmdb { get; set; }
 
     public string? PosterPath { get; set; }
+    
+    public ICollection<FavoriteMovie> FavoriteMovies { get; set; } = new List<FavoriteMovie>();
 }

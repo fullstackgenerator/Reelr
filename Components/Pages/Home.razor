@@ -7,6 +7,11 @@
 
 <h1>Movies</h1>
 
+@if (!string.IsNullOrEmpty(_debugMessage))
+{
+    <div class="alert alert-info">@_debugMessage</div>
+}
+
 @if (_movies == null)
 {
     <p>Loading...</p>
@@ -23,9 +28,18 @@ else
                 <h3>@movie.Title (@movie.ReleaseYear)</h3>
                 <p>@movie.Overview</p>
                 <p>Rating: @(movie.VoteAverageTmdb?.ToString("0.0") ?? "N/A")/10</p>
-                <button @onclick="() => ToggleFavorite(movie.Id)">
-                    @(IsFavorite(movie.Id) ? "Remove" : "Add")
-                </button>
+                <p><small>Movie ID: @movie.Id | TMDB ID: @movie.TmdbId</small></p>
+                
+                @if (_userId != null)
+                {
+                    <button @onclick="() => ToggleFavorite(movie.Id)" disabled="@_isProcessing">
+                        @(IsFavorite(movie.Id) ? "Remove from Favorites" : "Add to Favorites")
+                    </button>
+                }
+                else
+                {
+                    <p><em>Please log in to add favorites</em></p>
+                }
             </div>
         }
     </div>
@@ -35,16 +49,23 @@ else
     private List<Movie>? _movies;
     private List<Movie> _userFavorites = new();
     private string? _userId;
+    private string _debugMessage = string.Empty;
+    private bool _isProcessing = false;
 
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthProvider.GetAuthenticationStateAsync();
         _userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        
+        _debugMessage = _userId != null ? $"User logged in: {_userId}" : "User not logged in";
 
         _movies = await MovieService.GetMoviesAsync();
         
         if (_userId != null)
+        {
             _userFavorites = await MovieService.GetUserFavoritesAsync(_userId);
+            _debugMessage += $" | Favorites loaded: {_userFavorites.Count}";
+        }
     }
 
     private bool IsFavorite(int movieId)
@@ -52,13 +73,31 @@ else
 
     private async Task ToggleFavorite(int movieId)
     {
-        if (_userId == null) return;
+        if (_userId == null || _isProcessing) return;
 
-        if (IsFavorite(movieId))
-            await MovieService.RemoveFavoriteAsync(_userId, movieId);
-        else
-            await MovieService.AddFavoriteAsync(_userId, movieId);
-
-        _userFavorites = await MovieService.GetUserFavoritesAsync(_userId);
+        _isProcessing = true;
+        try
+        {
+            if (IsFavorite(movieId))
+            {
+                await MovieService.RemoveFavoriteAsync(_userId, movieId);
+                _debugMessage = $"Removed movie {movieId} from favorites";
+            }
+            else
+            {
+                await MovieService.AddFavoriteAsync(_userId, movieId);
+                _debugMessage = $"Added movie {movieId} to favorites";
+            }
+            
+            _userFavorites = await MovieService.GetUserFavoritesAsync(_userId);
+        }
+        catch (Exception ex)
+        {
+            _debugMessage = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
     }
 }

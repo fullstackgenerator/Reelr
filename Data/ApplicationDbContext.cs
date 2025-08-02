@@ -16,7 +16,14 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
-    
+        
+        builder.Entity<Movie>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).ValueGeneratedOnAdd();
+            entity.HasIndex(e => e.TmdbId).IsUnique();
+        });
+        
         builder.Entity<FavoriteMovie>()
             .HasKey(f => new { f.UserId, f.MovieId });
         
@@ -28,8 +35,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         
         builder.Entity<FavoriteMovie>()
             .HasOne(f => f.Movie)
-            .WithMany()
+            .WithMany(m => m.FavoriteMovies)
             .HasForeignKey(f => f.MovieId)
             .OnDelete(DeleteBehavior.Cascade);
     }
-    }
+}

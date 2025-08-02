@@ -19,7 +19,7 @@ public class TmdbService
         
         return response?.Results.Select(m => new Movie
         {
-            Id = m.Id,
+            TmdbId = m.Id,
             Title = m.Title,
             Overview = m.Overview,
             VoteAverageTmdb = m.Vote_Average,
