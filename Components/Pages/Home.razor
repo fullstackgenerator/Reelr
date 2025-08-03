@@ -4,6 +4,7 @@
 @using Reelr.Services
 @inject MovieService MovieService
 @inject AuthenticationStateProvider AuthProvider
+@implements IDisposable
 
 <h1>Movies</h1>
 
@@ -50,21 +51,22 @@ else
     private List<Movie> _userFavorites = new();
     private string? _userId;
     private string _debugMessage = string.Empty;
-    private bool _isProcessing = false;
+    private bool _isProcessing;
+    private Timer? _messageTimer;
 
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthProvider.GetAuthenticationStateAsync();
         _userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         
-        _debugMessage = _userId != null ? $"User logged in: {_userId}" : "User not logged in";
+        ShowTemporaryMessage(_userId != null ? $"User logged in: {_userId}" : "User not logged in");
 
         _movies = await MovieService.GetMoviesAsync();
         
         if (_userId != null)
         {
             _userFavorites = await MovieService.GetUserFavoritesAsync(_userId);
-            _debugMessage += $" | Favorites loaded: {_userFavorites.Count}";
+            ShowTemporaryMessage($"User logged in: {_userId} | Favorites loaded: {_userFavorites.Count}");
         }
     }
 
@@ -81,23 +83,45 @@ else
             if (IsFavorite(movieId))
             {
                 await MovieService.RemoveFavoriteAsync(_userId, movieId);
-                _debugMessage = $"Removed movie {movieId} from favorites";
+                ShowTemporaryMessage($"Removed '{_movies?.First(m => m.Id == movieId).Title}' from favorites");
             }
             else
             {
                 await MovieService.AddFavoriteAsync(_userId, movieId);
-                _debugMessage = $"Added movie {movieId} to favorites";
+                ShowTemporaryMessage($"Added '{_movies?.First(m => m.Id == movieId).Title}' to favorites");
             }
             
             _userFavorites = await MovieService.GetUserFavoritesAsync(_userId);
         }
         catch (Exception ex)
         {
-            _debugMessage = $"Error: {ex.Message}";
+            ShowTemporaryMessage($"Error: {ex.Message}");
         }
         finally
         {
             _isProcessing = false;
         }
+    }
+
+    private void ShowTemporaryMessage(string message)
+    {
+        _debugMessage = message;
+        StateHasChanged();
+        
+        _messageTimer?.Dispose();
+        
+        _messageTimer = new Timer(async void (_) =>
+        {
+            await InvokeAsync(() =>
+            {
+                _debugMessage = string.Empty;
+                StateHasChanged();
+            });
+        }, null, TimeSpan.FromSeconds(3), Timeout.InfiniteTimeSpan);
+    }
+
+    public void Dispose()
+    {
+        _messageTimer?.Dispose();
     }
 }
