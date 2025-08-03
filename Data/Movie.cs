@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Reelr.Data;
 
@@ -9,13 +10,21 @@ public class Movie
     
     public int TmdbId { get; set; }
     
-    [Required]
     public string? Title { get; set; }
 
     [Display(Name = "Release Year")]
     public string? ReleaseYear { get; set; }
-
-    public List<string>? Genres { get; set; }
+    
+    public string? GenresString { get; set; }
+    
+    [NotMapped]
+    public List<string>? Genres 
+    { 
+        get => string.IsNullOrEmpty(GenresString) 
+            ? new List<string>() 
+            : GenresString.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList();
+        set => GenresString = value != null ? string.Join(",", value) : null;
+    }
 
     public string? Overview { get; set; }
     

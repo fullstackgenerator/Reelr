@@ -16,19 +16,9 @@ public class MovieService
  
     public async Task<List<Movie>> GetMoviesAsync()
     {
-        var existingMovies = await _context.Movies.ToListAsync();
-        
-        if (!existingMovies.Any())
-        {
-            var tmdbMovies = await _tmdbService.GetPopularMoviesAsync();
-            
-            _context.Movies.AddRange(tmdbMovies);
-            await _context.SaveChangesAsync();
-            return await _context.Movies.ToListAsync();
-        }
-        
-        return existingMovies;
+        return await _tmdbService.GetPopularMoviesAsync();
     }
+
 
     public async Task AddFavoriteAsync(string userId, int movieId)
     {

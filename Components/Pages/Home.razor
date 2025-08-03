@@ -6,72 +6,241 @@
 @inject AuthenticationStateProvider AuthProvider
 @implements IDisposable
 
-<h1>Movies</h1>
+<div class="container-fluid px-3 px-md-4">
+    <div class="row">
+        <div class="col-12 mt-4">
 
-@if (!string.IsNullOrEmpty(_debugMessage))
-{
-    <div class="alert alert-info">@_debugMessage</div>
-}
-
-@if (_movies == null)
-{
-    <p>Loading...</p>
-}
-else
-{
-    <div class="movie-grid">
-        @foreach (var movie in _movies)
-        {
-            <div class="movie-card">
-                <img src="@($"https://image.tmdb.org/t/p/w500/{movie.PosterPath}")" 
-                     alt="@movie.Title poster"
-                     style="max-width: 200px"/>
-                <h3>@movie.Title (@movie.ReleaseYear)</h3>
-                <p>@movie.Overview</p>
-                <p>Rating: @(movie.VoteAverageTmdb?.ToString("0.0") ?? "N/A")/10</p>
-                <p><small>Movie ID: @movie.Id | TMDB ID: @movie.TmdbId</small></p>
-                
-                @if (_userId != null)
-                {
-                    <button @onclick="() => ToggleFavorite(movie.Id)" disabled="@_isProcessing">
-                        @(IsFavorite(movie.Id) ? "Remove from Favorites" : "Add to Favorites")
-                    </button>
-                }
-                else
-                {
-                    <p><em>Please log in to add favorites</em></p>
-                }
+            <div class="search-controls">
+                <div class="row g-3 align-items-end">
+                    <div class="col-12 col-md-6 col-lg-3">
+                        <label class="form-label">Title</label>
+                        <input type="search" class="form-control" placeholder="Search movies..."
+                               @bind="_searchCriteria.SearchTerm" @onkeypress="HandleKeyPress"/>
+                    </div>
+                    <div class="col-12 col-md-6 col-lg-3">
+                        <label class="form-label">Release Year</label>
+                        <input type="search" class="form-control" placeholder="e.g. 2022"
+                               @bind="_searchCriteria.ReleaseYear" @onkeypress="HandleKeyPress"/>
+                    </div>
+                    <div class="col-12 col-md-6 col-lg-3">
+                        <label class="form-label">Sort By</label>
+                        <select class="form-select" @bind="_searchCriteria.SortOption">
+                            <option value="">Sort order</option>
+                            <option value="rating_asc">Rating Ascending</option>
+                            <option value="rating_desc">Rating Descending</option>
+                            <option value="name_asc">Name Ascending</option>
+                            <option value="name_desc">Name Descending</option>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Genres</label>
+                        <div class="row g-2">
+                            @foreach (var genre in _availableGenres)
+                            {
+                                <div class="col-6 col-sm-4 col-md-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="@genre.ToLower()"
+                                               checked="@_searchCriteria.SelectedGenres.Contains(genre)"
+                                               @onchange="@((e) => ToggleGenre(genre, (bool)e.Value!))"/>
+                                        <label class="form-check-label" for="@genre.ToLower()">@genre</label>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                    <div class="col-12 d-flex flex-wrap gap-2 mt-3">
+                        <button class="btn btn-primary" @onclick="SearchMovies" disabled="@_isProcessing">
+                            <span class="spinner-border spinner-border-sm me-2"
+                                  style="display: @(_isProcessing ? "inline-block" : "none")"></span>
+                            Search
+                        </button>
+                        <button class="btn btn-outline-secondary" @onclick="ClearSearch" disabled="@_isProcessing">
+                            Clear
+                        </button>
+                    </div>
+                </div>
             </div>
-        }
+
+            @if (TotalPages > 1)
+            {
+                <div class="d-flex justify-content-center mt-3">
+                    <nav aria-label="Movie pagination">
+                        <ul class="pagination pagination-sm flex-wrap">
+                            <li class="page-item @(_currentPage == 1 ? "disabled" : "")">
+                                <button class="page-link" @onclick="PreviousPage" disabled="@(_currentPage == 1)">
+                                    Previous
+                                </button>
+                            </li>
+                            <li class="page-item active">
+                                <span class="page-link">Page @_currentPage of @TotalPages</span>
+                            </li>
+                            <li class="page-item @(_currentPage == TotalPages ? "disabled" : "")">
+                                <button class="page-link" @onclick="NextPage" disabled="@(_currentPage == TotalPages)">
+                                    Next
+                                </button>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(_statusMessage))
+            {
+                <div class="alert alert-info alert-dismissible fade show mt-3" role="alert">
+                    @_statusMessage
+                </div>
+            }
+
+            @if (_movies == null)
+            {
+                <div class="d-flex justify-content-center my-4">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            }
+            else if (!_movies.Any())
+            {
+                <div class="alert alert-warning mt-4" role="alert">
+                    <h4 class="alert-heading">No movies found</h4>
+                    <p>No movies match your criteria. Try adjusting your filters.</p>
+                </div>
+            }
+            else
+            {
+                <p class="mb-3">
+                    <small class="text-muted">
+                        Showing @(((_currentPage - 1) * PageSize) + 1)
+                        -
+                        @(Math.Min(_currentPage * PageSize, _movies.Count))
+                        of @_movies.Count movies
+                    </small>
+                </p>
+
+                <div class="row g-3">
+                    @foreach (var movie in PagedMovies)
+                    {
+                        <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                            <div class="card movie-card h-100">
+                                <img src="@($"https://image.tmdb.org/t/p/w500/{movie.PosterPath}")"
+                                     alt="@movie.Title poster" class="card-img-top"/>
+                                <div class="card-body d-flex flex-column">
+                                    <h5 class="card-title">@movie.Title</h5>
+                                    <p class="card-text"><small class="text-muted">(@movie.ReleaseYear)</small></p>
+                                    <p class="card-text text-truncate-3">@movie.Overview</p>
+                                    <div class="mt-auto">
+                                        <p class="card-text">
+                                            <strong>Rating:</strong> @(movie.VoteAverageTmdb?.ToString("0.0") ?? "N/A")/10
+                                        </p>
+                                        @if (!string.IsNullOrEmpty(movie.GenresString))
+                                        {
+                                            <p class="card-text">
+                                                <small class="text-muted">Genres: @movie.GenresString</small>
+                                            </p>
+                                        }
+                                        <p class="card-text">
+                                            <small class="text-muted">ID: @movie.Id | TMDB: @movie.TmdbId</small>
+                                        </p>
+                                        @if (_userId != null)
+                                        {
+                                            <button
+                                                class="btn @(IsFavorite(movie.Id) ? "btn-danger" : "btn-outline-primary") btn-sm w-100"
+                                                @onclick="() => ToggleFavorite(movie.Id)" disabled="@_isProcessing">
+                                                <i class="@(IsFavorite(movie.Id) ? "bi bi-heart-fill" : "bi bi-heart")"></i>
+                                                @(IsFavorite(movie.Id) ? "Remove from Favorites" : "Add to Favorites")
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <p class="card-text text-center">
+                                                <small class="text-muted">Please log in to add favorites</small>
+                                            </p>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
     </div>
-}
+</div>
 
 @code {
+    private List<Movie>? _allMovies;
     private List<Movie>? _movies;
-    private List<Movie> _userFavorites = new();
+    private HashSet<int> _userFavoriteIds = new();
     private string? _userId;
-    private string _debugMessage = string.Empty;
+
+    private string _statusMessage = string.Empty;
     private bool _isProcessing;
     private Timer? _messageTimer;
 
+    private SearchCriteria _searchCriteria = new();
+    private int _currentPage = 1;
+    private const int PageSize = 12;
+
+    private readonly string[] _availableGenres =
+    {
+        "Action", "Adventure", "Animation", "Comedy", "Crime", "Drama", "Family", "Fantasy", "Horror", "Romance",
+        "Science Fiction", "Thriller"
+    };
+
+    private int? TotalPages => (_movies?.Count + PageSize - 1) / PageSize;
+
+    private List<Movie> PagedMovies =>
+        _movies?.Skip((_currentPage - 1) * PageSize).Take(PageSize).ToList() ?? new();
+
     protected override async Task OnInitializedAsync()
     {
-        var authState = await AuthProvider.GetAuthenticationStateAsync();
-        _userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        
-        ShowTemporaryMessage(_userId != null ? $"User logged in: {_userId}" : "User not logged in");
+        await InitializeUserAsync();
+        await LoadMoviesAsync();
 
-        _movies = await MovieService.GetMoviesAsync();
-        
         if (_userId != null)
         {
-            _userFavorites = await MovieService.GetUserFavoritesAsync(_userId);
-            ShowTemporaryMessage($"User logged in: {_userId} | Favorites loaded: {_userFavorites.Count}");
+            await LoadUserFavoritesAsync();
         }
     }
 
-    private bool IsFavorite(int movieId)
-        => _userFavorites.Any(f => f.Id == movieId);
+    private async Task InitializeUserAsync()
+    {
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        _userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        ShowTemporaryMessage(_userId != null ? $"User logged in: {_userId}" : "User not logged in");
+    }
+
+    private async Task LoadMoviesAsync()
+    {
+        try
+        {
+            _allMovies = await MovieService.GetMoviesAsync();
+            _movies = _allMovies;
+        }
+        catch (Exception ex)
+        {
+            ShowTemporaryMessage($"Error loading movies: {ex.Message}");
+        }
+    }
+
+    private async Task LoadUserFavoritesAsync()
+    {
+        if (_userId == null) return;
+
+        try
+        {
+            var favorites = await MovieService.GetUserFavoritesAsync(_userId);
+            _userFavoriteIds = favorites.Select(f => f.Id).ToHashSet();
+            ShowTemporaryMessage($"User logged in: {_userId} | Favorites loaded: {_userFavoriteIds.Count}");
+        }
+        catch (Exception ex)
+        {
+            ShowTemporaryMessage($"Error loading favorites: {ex.Message}");
+        }
+    }
+
+    private bool IsFavorite(int movieId) => _userFavoriteIds.Contains(movieId);
 
     private async Task ToggleFavorite(int movieId)
     {
@@ -80,18 +249,21 @@ else
         _isProcessing = true;
         try
         {
+            var movie = _movies?.FirstOrDefault(m => m.Id == movieId);
+            if (movie == null) return;
+
             if (IsFavorite(movieId))
             {
                 await MovieService.RemoveFavoriteAsync(_userId, movieId);
-                ShowTemporaryMessage($"Removed '{_movies?.First(m => m.Id == movieId).Title}' from favorites");
+                _userFavoriteIds.Remove(movieId);
+                ShowTemporaryMessage($"Removed '{movie.Title}' from favorites");
             }
             else
             {
                 await MovieService.AddFavoriteAsync(_userId, movieId);
-                ShowTemporaryMessage($"Added '{_movies?.First(m => m.Id == movieId).Title}' to favorites");
+                _userFavoriteIds.Add(movieId);
+                ShowTemporaryMessage($"Added '{movie.Title}' to favorites");
             }
-            
-            _userFavorites = await MovieService.GetUserFavoritesAsync(_userId);
         }
         catch (Exception ex)
         {
@@ -103,18 +275,103 @@ else
         }
     }
 
+    private Task SearchMovies()
+    {
+        if (_allMovies == null) return Task.CompletedTask;
+
+        _isProcessing = true;
+        try
+        {
+            if (_searchCriteria.IsEmpty)
+            {
+                _movies = _allMovies;
+            }
+            else
+            {
+                _movies = _allMovies
+                    .Where(m =>
+                        m.Title != null &&
+                        (string.IsNullOrWhiteSpace(_searchCriteria.SearchTerm) || m.Title.Contains(_searchCriteria.SearchTerm, StringComparison.OrdinalIgnoreCase)) &&
+                        (string.IsNullOrWhiteSpace(_searchCriteria.ReleaseYear) || m.ReleaseYear == _searchCriteria.ReleaseYear) &&
+                        (!_searchCriteria.SelectedGenres.Any() || _searchCriteria.SelectedGenres.All(g => m.GenresString?.Contains(g, StringComparison.OrdinalIgnoreCase) == true))
+                    )
+                    .ToList();
+            }
+            
+            _movies = _searchCriteria.SortOption switch
+            {
+                "rating_asc" => _movies.OrderBy(m => m.VoteAverageTmdb ?? 0).ToList(),
+                "rating_desc" => _movies.OrderByDescending(m => m.VoteAverageTmdb ?? 0).ToList(),
+                "name_asc" => _movies.OrderBy(m => m.Title).ToList(),
+                "name_desc" => _movies.OrderByDescending(m => m.Title).ToList(),
+                _ => _movies
+            };
+
+            _currentPage = 1;
+        }
+        catch (Exception ex)
+        {
+            ShowTemporaryMessage($"Search error: {ex.Message}");
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+
+        return Task.CompletedTask;
+    }
+
+
+    private void ClearSearch()
+    {
+        _searchCriteria.Clear();
+        _movies = _allMovies;
+        _currentPage = 1;
+    }
+
+    private void ToggleGenre(string genre, bool isSelected)
+    {
+        if (isSelected)
+            _searchCriteria.SelectedGenres.Add(genre);
+        else
+            _searchCriteria.SelectedGenres.Remove(genre);
+    }
+
+    private async Task HandleKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await SearchMovies();
+        }
+    }
+
+    private void NextPage()
+    {
+        if (_currentPage < TotalPages)
+        {
+            _currentPage++;
+        }
+    }
+
+    private void PreviousPage()
+    {
+        if (_currentPage > 1)
+        {
+            _currentPage--;
+        }
+    }
+
     private void ShowTemporaryMessage(string message)
     {
-        _debugMessage = message;
+        _statusMessage = message;
         StateHasChanged();
-        
+
         _messageTimer?.Dispose();
-        
         _messageTimer = new Timer(async void (_) =>
         {
             await InvokeAsync(() =>
             {
-                _debugMessage = string.Empty;
+                _statusMessage = string.Empty;
                 StateHasChanged();
             });
         }, null, TimeSpan.FromSeconds(3), Timeout.InfiniteTimeSpan);
@@ -124,4 +381,36 @@ else
     {
         _messageTimer?.Dispose();
     }
+
+    public class SearchCriteria
+    {
+        public string SearchTerm { get; set; } = string.Empty;
+        public string ReleaseYear { get; set; } = string.Empty;
+        public string SortOption { get; set; } = string.Empty;
+        public HashSet<string> SelectedGenres { get; set; } = new();
+
+        public bool IsEmpty => string.IsNullOrWhiteSpace(SearchTerm) &&
+                               string.IsNullOrWhiteSpace(ReleaseYear) &&
+                               !SelectedGenres.Any();
+
+        public void Clear()
+        {
+            SearchTerm = string.Empty;
+            ReleaseYear = string.Empty;
+            SelectedGenres.Clear();
+        }
+
+        public string GetCriteriaDescription()
+        {
+            var criteria = new List<string>();
+
+            if (!string.IsNullOrWhiteSpace(SearchTerm)) criteria.Add($"title: '{SearchTerm}'");
+            if (!string.IsNullOrWhiteSpace(ReleaseYear)) criteria.Add($"year: {ReleaseYear}");
+            if (SelectedGenres.Any()) criteria.Add($"genres: {string.Join(", ", SelectedGenres)}");
+            if (!string.IsNullOrWhiteSpace(SortOption)) criteria.Add($"sorted by {SortOption.Replace("_", " ")}");
+
+            return criteria.Count > 0 ? string.Join(", ", criteria) : "all movies";
+        }
+    }
+
 }
