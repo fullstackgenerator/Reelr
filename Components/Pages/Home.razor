@@ -5,6 +5,7 @@
 @inject MovieService MovieService
 @inject AuthenticationStateProvider AuthProvider
 @implements IDisposable
+@inject NavigationManager Navigation
 
 <div class="container-fluid px-3 px-md-4">
     <div class="row">
@@ -139,7 +140,7 @@
                                             </p>
                                         }
                                         <p class="card-text">
-                                            <small class="text-muted">ID: @movie.Id | TMDB: @movie.TmdbId</small>
+                                            <small class="text-muted">TMDB: @movie.TmdbId</small>
                                         </p>
                                         @if (_userId != null)
                                         {
@@ -156,6 +157,10 @@
                                                 <small class="text-muted">Please log in to add favorites</small>
                                             </p>
                                         }
+                                        <button class="btn btn-sm btn-warning w-100 mt-2"
+                                                @onclick="() => ViewDetails(movie.Id)">
+                                            <i class="bi bi-info-circle me-1"></i> Details
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -177,15 +182,15 @@
     private bool _isProcessing;
     private Timer? _messageTimer;
 
-    private SearchCriteria _searchCriteria = new();
+    private readonly SearchCriteria _searchCriteria = new();
     private int _currentPage = 1;
     private const int PageSize = 12;
 
     private readonly string[] _availableGenres =
-    {
+    [
         "Action", "Adventure", "Animation", "Comedy", "Crime", "Drama", "Family", "Fantasy", "Horror", "Romance",
         "Science Fiction", "Thriller"
-    };
+    ];
 
     private int? TotalPages => (_movies?.Count + PageSize - 1) / PageSize;
 
@@ -297,7 +302,7 @@
                     )
                     .ToList();
             }
-            
+
             _movies = _searchCriteria.SortOption switch
             {
                 "rating_asc" => _movies.OrderBy(m => m.VoteAverageTmdb ?? 0).ToList(),
@@ -399,18 +404,11 @@
             ReleaseYear = string.Empty;
             SelectedGenres.Clear();
         }
+    }
 
-        public string GetCriteriaDescription()
-        {
-            var criteria = new List<string>();
-
-            if (!string.IsNullOrWhiteSpace(SearchTerm)) criteria.Add($"title: '{SearchTerm}'");
-            if (!string.IsNullOrWhiteSpace(ReleaseYear)) criteria.Add($"year: {ReleaseYear}");
-            if (SelectedGenres.Any()) criteria.Add($"genres: {string.Join(", ", SelectedGenres)}");
-            if (!string.IsNullOrWhiteSpace(SortOption)) criteria.Add($"sorted by {SortOption.Replace("_", " ")}");
-
-            return criteria.Count > 0 ? string.Join(", ", criteria) : "all movies";
-        }
+    private void ViewDetails(int movieId)
+    {
+        Navigation.NavigateTo($"/details/{movieId}");
     }
 
 }

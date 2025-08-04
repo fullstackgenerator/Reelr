@@ -1,0 +1,251 @@
+﻿@page "/details/{movieId:int}"
+@using System.Security.Claims
+@using Reelr.Data
+@using Reelr.Services
+@inject MovieService MovieService
+@inject AuthenticationStateProvider AuthProvider
+@inject NavigationManager Navigation
+
+<div class="container-fluid px-3 px-md-4">
+    <div class="row">
+        <div class="col-12 mt-4">
+            @if (_movie == null && !_isLoading)
+            {
+                <div class="alert alert-warning" role="alert">
+                    <h4 class="alert-heading">Movie not found</h4>
+                    <p>The requested movie could not be found.</p>
+                    <button class="btn btn-primary" @onclick="GoBack">
+                        <i class="bi bi-arrow-left me-2"></i>Back to Movies
+                    </button>
+                </div>
+            }
+            else if (_isLoading)
+            {
+                <div class="d-flex justify-content-center my-4">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            }
+            else if (_movie != null)
+            {
+                <div class="row">
+                    @* Movie Poster *@
+                    <div class="col-12 col-md-4 col-lg-3 mb-4">
+                        <div class="position-relative">
+                            <img src="@($"https://image.tmdb.org/t/p/w500/{_movie.PosterPath}")"
+                                 alt="@_movie.Title poster" 
+                                 class="img-fluid rounded shadow" 
+                                 style="width: 100%; max-width: 300px;" />
+                            
+                            @if (_userId != null && IsFavorite())
+                            {
+                                <div class="position-absolute top-0 end-0 p-2">
+                                    <span class="badge bg-danger fs-6">
+                                        <i class="bi bi-heart-fill"></i> Favorite
+                                    </span>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    @* Movie Details *@
+                    <div class="col-12 col-md-8 col-lg-9">
+                        <div class="mb-3">
+                            <h1 class="display-5 fw-bold">@_movie.Title</h1>
+                            <p class="lead text-muted">(@_movie.ReleaseYear)</p>
+                        </div>
+
+                        @* Rating *@
+                        <div class="mb-3">
+                            <div class="d-flex align-items-center">
+                                <span class="badge bg-warning text-dark fs-6 me-3">
+                                    <i class="bi bi-star-fill me-1"></i>
+                                    @(_movie.VoteAverageTmdb?.ToString("0.0") ?? "N/A")/10
+                                </span>
+                                <small class="text-muted">TMDB Rating</small>
+                            </div>
+                        </div>
+
+                        @* Genres *@
+                        @if (!string.IsNullOrEmpty(_movie.GenresString))
+                        {
+                            <div class="mb-3">
+                                <h6 class="fw-bold">Genres</h6>
+                                <div class="d-flex flex-wrap gap-2">
+                                    @foreach (var genre in _movie.Genres ?? new List<string>())
+                                    {
+                                        <span class="badge bg-secondary">@genre</span>
+                                    }
+                                </div>
+                            </div>
+                        }
+
+                        @* Overview *@
+                        @if (!string.IsNullOrEmpty(_movie.Overview))
+                        {
+                            <div class="mb-4">
+                                <h6 class="fw-bold">Overview</h6>
+                                <p class="text-muted">@_movie.Overview</p>
+                            </div>
+                        }
+
+                        @* Movie IDs *@
+                        <div class="mb-4">
+                            <small class="text-muted">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Movie ID: @_movie.Id | TMDB ID: @_movie.TmdbId
+                            </small>
+                        </div>
+                        
+                        <div class="d-flex flex-wrap gap-3">
+                            @if (_userId != null)
+                            {
+                                <button class="btn @(IsFavorite() ? "btn-danger" : "btn-outline-primary")" 
+                                        @onclick="ToggleFavorite" 
+                                        disabled="@_isProcessing">
+                                    @if (_isProcessing)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2"></span>
+                                    }
+                                    <i class="@(IsFavorite() ? "bi bi-heart-fill" : "bi bi-heart") me-1"></i>
+                                    @(IsFavorite() ? "Remove from Favorites" : "Add to Favorites")
+                                </button>
+                            }
+                            else
+                            {
+                                <span class="text-muted">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    Please log in to add to favorites
+                                </span>
+                            }
+                            
+                            <button class="btn btn-outline-secondary" @onclick="GoBack">
+                                <i class="bi bi-arrow-left me-2"></i>Back to Movies
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                @if (!string.IsNullOrEmpty(_statusMessage))
+                {
+                    <div class="alert alert-info alert-dismissible fade show mt-4" role="alert">
+                        @_statusMessage
+                    </div>
+                }
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public int MovieId { get; set; }
+    
+    private Movie? _movie;
+    private string? _userId;
+    private HashSet<int> _userFavoriteIds = new();
+    private bool _isLoading = true;
+    private bool _isProcessing;
+    private string _statusMessage = string.Empty;
+    private Timer? _messageTimer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await InitializeUserAsync();
+        await LoadMovieAsync();
+        
+        if (_userId != null)
+        {
+            await LoadUserFavoritesAsync();
+        }
+        
+        _isLoading = false;
+    }
+
+    private async Task InitializeUserAsync()
+    {
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        _userId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+    }
+
+    private async Task LoadMovieAsync()
+    {
+        try
+        {
+            var allMovies = await MovieService.GetMoviesAsync();
+            _movie = allMovies.FirstOrDefault(m => m.Id == MovieId);
+        }
+        catch (Exception ex)
+        {
+            ShowTemporaryMessage($"Error loading movie: {ex.Message}");
+        }
+    }
+
+    private async Task LoadUserFavoritesAsync()
+    {
+        if (_userId == null) return;
+
+        try
+        {
+            var favorites = await MovieService.GetUserFavoritesAsync(_userId);
+            _userFavoriteIds = favorites.Select(f => f.Id).ToHashSet();
+        }
+        catch (Exception ex)
+        {
+            ShowTemporaryMessage($"Error loading favorites: {ex.Message}");
+        }
+    }
+
+    private bool IsFavorite() => _movie != null && _userFavoriteIds.Contains(_movie.Id);
+
+    private async Task ToggleFavorite()
+    {
+        if (_userId == null || _movie == null || _isProcessing) return;
+
+        _isProcessing = true;
+        try
+        {
+            if (IsFavorite())
+            {
+                await MovieService.RemoveFavoriteAsync(_userId, _movie.Id);
+                _userFavoriteIds.Remove(_movie.Id);
+                ShowTemporaryMessage($"Removed '{_movie.Title}' from favorites");
+            }
+            else
+            {
+                await MovieService.AddFavoriteAsync(_userId, _movie.Id);
+                _userFavoriteIds.Add(_movie.Id);
+                ShowTemporaryMessage($"Added '{_movie.Title}' to favorites");
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowTemporaryMessage($"Error: {ex.Message}");
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+
+    private void GoBack()
+    {
+        Navigation.NavigateTo("/");
+    }
+
+    private void ShowTemporaryMessage(string message)
+    {
+        _statusMessage = message;
+        StateHasChanged();
+
+        _messageTimer?.Dispose();
+        _messageTimer = new Timer(async void (_) =>
+        {
+            await InvokeAsync(() =>
+            {
+                _statusMessage = string.Empty;
+                StateHasChanged();
+            });
+        }, null, TimeSpan.FromSeconds(3), Timeout.InfiniteTimeSpan);
+    }
+}

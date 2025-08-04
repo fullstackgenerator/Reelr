@@ -18,13 +18,13 @@
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                 <li class="nav-item">
-                    <a class="nav-link @(Navigation.Uri.EndsWith("/") ? "active" : "")" href="/">
-                        <i class="bi bi-search me-1"></i> Browse
+                    <a class="nav-link @(Navigation.Uri.Contains("favorites") ? "active" : "")" href="/favorites">
+                        <i class="bi bi-heart me-1"></i> Favorites
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link @(Navigation.Uri.Contains("favorites") ? "active" : "")" href="/favorites">
-                        <i class="bi bi-heart me-1"></i> Favorites
+                    <a class="nav-link @(Navigation.Uri.Contains("random") ? "active" : "")" href="/random">
+                        <i class="bi bi-heart me-1"></i> Random movie
                     </a>
                 </li>
             </ul>
