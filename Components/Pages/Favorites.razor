@@ -1,16 +1,15 @@
-﻿@* Favorites Page: /favorites *@
-@page "/favorites"
+﻿@page "/favorites"
 @using System.Security.Claims
 @using Reelr.Data
 @using Reelr.Services
 @inject MovieService MovieService
 @inject AuthenticationStateProvider AuthProvider
+@implements IDisposable
+@inject NavigationManager Navigation
 
 <div class="container-fluid px-3 px-md-4">
     <div class="row">
         <div class="col-12 mt-4">
-         
-
             @if (_favorites == null)
             {
                 <div class="d-flex justify-content-center my-4">
@@ -39,7 +38,6 @@
             }
             else
             {
-
                 <div class="row g-3">
                     @foreach (var movie in _favorites)
                     {
@@ -91,6 +89,18 @@
                                                 ID: @movie.Id | TMDB: @movie.TmdbId
                                             </small>
                                         </p>
+                                        
+                                        <button class="btn btn-danger btn-sm w-100 mt-2"
+                                                @onclick="() => RemoveFromFavorites(movie.Id)" 
+                                                disabled="@_isProcessing">
+                                            <i class="bi bi-heart-fill me-1"></i>
+                                            Remove from Favorites
+                                        </button>
+                                        
+                                        <button class="btn btn-sm btn-warning w-100 mt-2"
+                                                @onclick="() => ViewDetails(movie.TmdbId)">
+                                            Details
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -112,6 +122,8 @@
 @code {
     private List<Movie>? _favorites;
     private string? _userId;
+    private bool _isProcessing;
+    private Timer? _messageTimer;
 
     protected override async Task OnInitializedAsync()
     {
@@ -120,5 +132,54 @@
 
         if (_userId != null)
             _favorites = await MovieService.GetUserFavoritesAsync(_userId);
+    }
+
+    private async Task RemoveFromFavorites(int movieId)
+    {
+        if (_userId == null || _isProcessing) return;
+
+        _isProcessing = true;
+        try
+        {
+            var movie = _favorites?.FirstOrDefault(m => m.Id == movieId);
+            if (movie == null) return;
+
+            await MovieService.RemoveFavoriteAsync(_userId, movieId);
+            _favorites = await MovieService.GetUserFavoritesAsync(_userId);
+            
+            ShowTemporaryMessage();
+        }
+        catch (Exception)
+        {
+            ShowTemporaryMessage();
+        }
+        finally
+        {
+            _isProcessing = false;
+        }
+    }
+
+    private void ViewDetails(int movieId)
+    {
+        Navigation.NavigateTo($"/details/{movieId}");
+    }
+
+    private void ShowTemporaryMessage()
+    {
+        StateHasChanged();
+
+        _messageTimer?.Dispose();
+        _messageTimer = new Timer(async void (_) =>
+        {
+            await InvokeAsync(() =>
+            {
+                StateHasChanged();
+            });
+        }, null, TimeSpan.FromSeconds(3), Timeout.InfiniteTimeSpan);
+    }
+
+    public void Dispose()
+    {
+        _messageTimer?.Dispose();
     }
 }

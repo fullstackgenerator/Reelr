@@ -1,13 +1,16 @@
-﻿using Reelr.Data;
+﻿using Microsoft.EntityFrameworkCore;
+using Reelr.Data;
 
 public class TmdbService
 {
     private readonly HttpClient _httpClient;
     private readonly string? _apiKey;
+    private readonly ApplicationDbContext _context;
 
-    public TmdbService(HttpClient httpClient, IConfiguration config)
+    public TmdbService(HttpClient httpClient, IConfiguration config, ApplicationDbContext dbContext)
     {
         _httpClient = httpClient;
+        _context = dbContext;
         _apiKey = config["TMDB:ApiKey"];
         var baseUrl = config["TMDB:BaseUrl"];
         if (!string.IsNullOrEmpty(baseUrl))
@@ -28,33 +31,46 @@ public class TmdbService
 
             if (response?.Results == null) continue;
 
-            var movies = response.Results.Select(m => new Movie
+            foreach (var m in response.Results)
             {
-                TmdbId = m.Id,
-                Title = m.Title,
-                Overview = m.Overview,
-                VoteAverageTmdb = m.Vote_Average,
-                PosterPath = m.Poster_Path,
-                ReleaseYear = m.Release_Date?.Split('-')[0],
-                GenresString = m.Genre_Ids != null && m.Genre_Ids.Any()
-                    ? string.Join(",", m.Genre_Ids.Select(id => genreMap.GetValueOrDefault(id, "Unknown")))
-                    : null
-            });
+                var existingMovie = await _context.Movies
+                    .FirstOrDefaultAsync(dbMovie => dbMovie.TmdbId == m.Id);
 
-            allMovies.AddRange(movies);
+                if (existingMovie == null)
+                {
+                    var newMovie = new Movie
+                    {
+                        TmdbId = m.Id,
+                        Title = m.Title,
+                        Overview = m.Overview,
+                        VoteAverageTmdb = m.Vote_Average,
+                        PosterPath = m.Poster_Path,
+                        ReleaseYear = m.Release_Date?.Split('-')[0],
+                        GenresString = m.Genre_Ids != null && m.Genre_Ids.Any()
+                            ? string.Join(",", m.Genre_Ids.Select(id => genreMap.GetValueOrDefault(id, "Unknown")))
+                            : null
+                    };
+
+                    _context.Movies.Add(newMovie);
+                    await _context.SaveChangesAsync();
+                    allMovies.Add(newMovie);
+                }
+                else
+                {
+                    allMovies.Add(existingMovie);
+                }
+            }
         }
-
         return allMovies;
     }
-
-
+    
     private async Task<Dictionary<int, string>> GetGenreMapAsync()
     {
         try
         {
             var response = await _httpClient.GetFromJsonAsync<GenreResponse>(
                 $"genre/movie/list?api_key={_apiKey}&language=en-US");
-            
+
             return response?.Genres?.ToDictionary(g => g.Id, g => g.Name) ?? new Dictionary<int, string>();
         }
         catch (Exception ex)
