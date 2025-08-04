@@ -64,4 +64,24 @@ app.MapRazorComponents<App>()
 // Add additional endpoints required by the Identity /Account Razor components.
 app.MapAdditionalIdentityEndpoints();
 
+app.MapPost("/Account/Logout", async (SignInManager<ApplicationUser> signInManager, HttpContext context) =>
+{
+    if (signInManager.IsSignedIn(context.User))
+    {
+        await signInManager.SignOutAsync();
+    }
+    
+    return Results.Redirect("/");
+});
+
+app.MapGet("/Account/Logout", async (SignInManager<ApplicationUser> signInManager, HttpContext context) =>
+{
+    if (signInManager.IsSignedIn(context.User))
+    {
+        await signInManager.SignOutAsync();
+    }
+    
+    return Results.Redirect("/");
+});
+
 app.Run();
