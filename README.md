@@ -16,6 +16,23 @@ Reelr is an ASP.NET Core Razor server web application that integrates with the T
 - **UI**: Bootstrap 5
 - **External API**: [TMDB API](https://www.themoviedb.org/documentation/api)
 
+## Getting Started
+
+### Prerequisites
+- [.NET 8 SDK](https://dotnet.microsoft.com/download)
+- A TMDB API key – [sign up here](https://www.themoviedb.org/settings/api)
+
+### Setup
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/yourusername/reelr.git
+   cd reelr
+
+### License & Contribution
+
+TechBoard is released under the **MIT License**, encouraging you to explore, modify, and adapt the code as you see fit. Feel free to fork the repository and give it a star!
+
 ## Features
 
 ### Home
@@ -55,20 +72,3 @@ Authenticated users can save movies to their favorites. Once logged in, an "Add 
 Feeling indecisive? The Random Movie page delivers a randomly selected title from the TMDB catalog, perfect for spontaneous viewing.
 
 <img width="2256" height="875" alt="6" src="https://github.com/user-attachments/assets/3dcb2abd-1c14-4376-9cf4-6ddbe61f41f6" />
-
-## Getting Started
-
-### Prerequisites
-- [.NET 8 SDK](https://dotnet.microsoft.com/download)
-- A TMDB API key – [sign up here](https://www.themoviedb.org/settings/api)
-
-### Setup
-
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/yourusername/reelr.git
-   cd reelr
-
-### License & Contribution
-
-TechBoard is released under the **MIT License**, encouraging you to explore, modify, and adapt the code as you see fit. Feel free to fork the repository and give it a star!
