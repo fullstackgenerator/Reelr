@@ -12,8 +12,8 @@ using Reelr.Data;
 namespace Reelr.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250803115323_AddTmdbIdToMovieWithCleanup")]
-    partial class AddTmdbIdToMovieWithCleanup
+    [Migration("20250806070423_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -259,7 +259,6 @@ namespace Reelr.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Title")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("TmdbId")
