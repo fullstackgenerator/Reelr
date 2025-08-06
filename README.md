@@ -3,7 +3,7 @@
 
 # Reelr 🎬
 
-Reelr is an ASP.NET Core Razor server web application that integrates with the TMDB API to deliver movie discovery features. It supports user authentication using ASP.NET Identity and allows users to save favorite movies and explore titles randomly.
+Reelr is an ASP.NET Core Blazor server web application that integrates with the TMDB API to deliver movie discovery features. It supports user authentication using ASP.NET Identity and allows users to save favorite movies and explore titles randomly.
 
 <small>*Mobile view shown on the right.*</small>
 
@@ -11,7 +11,7 @@ Reelr is an ASP.NET Core Razor server web application that integrates with the T
 
 ## Tech Stack
 
-- **Backend**: ASP.NET Core Razor server
+- **Backend**: ASP.NET Core Blazor server
 - **Authentication**: ASP.NET Identity
 - **Database**: Entity Framework Core
 - **UI**: Bootstrap 5
