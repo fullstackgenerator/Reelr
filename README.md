@@ -1,4 +1,6 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![.NET](https://img.shields.io/badge/.NET-9.0-blue.svg)](https://dotnet.microsoft.com/en-us/download)
+[![Stars](https://img.shields.io/github/stars/fullstackgenerator/reelr)](https://github.com/fullstackgenerator/reelr/stargazers)
 
 # Reelr 🎬
 
@@ -19,7 +21,7 @@ Reelr is an ASP.NET Core Razor server web application that integrates with the T
 ## Getting Started
 
 ### Prerequisites
-- [.NET 8 SDK](https://dotnet.microsoft.com/download)
+- [.NET 9 SDK](https://dotnet.microsoft.com/download)
 - A TMDB API key – [sign up here](https://www.themoviedb.org/settings/api)
 
 ### Setup
