@@ -1,6 +1,5 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![.NET](https://img.shields.io/badge/.NET-9.0-blue.svg)](https://dotnet.microsoft.com/en-us/download)
-[![Stars](https://img.shields.io/github/stars/fullstackgenerator/reelr)](https://github.com/fullstackgenerator/reelr/stargazers)
 
 # Reelr 🎬
 
